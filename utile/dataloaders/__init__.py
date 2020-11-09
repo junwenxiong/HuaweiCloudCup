@@ -9,8 +9,8 @@ def make_data_loader(args, **kwargs):
     val_imgs_dir = os.path.join(data_dir, "val/images/")
     train_labels_dir = os.path.join(data_dir, "train/labels/")
     val_labels_dir = os.path.join(data_dir, "val/labels/")
-    train_data = RSCDataset(train_imgs_dir, train_labels_dir)
-    valid_data = RSCDataset(val_imgs_dir, val_labels_dir)
+    train_data = RSCDataset(train_imgs_dir, train_labels_dir, flag='train')
+    valid_data = RSCDataset(val_imgs_dir, val_labels_dir, flag='val')
     train_loader = DataLoader(dataset=train_data, batch_size=args.batch_size, shuffle=True, **kwargs)
     valid_loader = DataLoader(dataset=valid_data, batch_size=args.batch_size, shuffle=False, **kwargs)
 
