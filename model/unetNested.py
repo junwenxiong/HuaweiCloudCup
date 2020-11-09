@@ -5,7 +5,7 @@ from model.layers import *
 from model.util import count_param
 
 class UNetNested(nn.Module):
-    def __init__(self, in_channels=1, n_classes=2, feature_scale=2, is_deconv=True, is_ds=True, sync_bn=False):
+    def __init__(self, in_channels=3, n_classes=2, feature_scale=2, is_deconv=True, is_ds=True, sync_bn=False):
         super(UNetNested, self).__init__()
         self.in_channels = in_channels
         self.feature_scale = feature_scale
