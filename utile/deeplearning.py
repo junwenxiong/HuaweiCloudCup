@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 from utile.evaluator import Evaluator
-from utile.Data import RSCDataset
+from utile.dataloaders.Data import RSCDataset
 
 from unet import UNet
 from unet import UNetNested
