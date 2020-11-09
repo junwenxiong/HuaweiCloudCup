@@ -1,9 +1,9 @@
-from model.unet_model import UNet
-from model.unetNested import UNetNested
+from unet.unet_model import UNet
+from unet.unetNested import UNetNested
 import torch
 from torch.autograd import Variable
-from model.util import count_param
-from model.unet_SIIS import UNet_SIIS
+from unet.util import count_param
+from unet.unet_SIIS import UNet_SIIS
 def UNet_print():
     x = Variable(torch.rand(2,3,64,64))
     # model = UNet(3,2)

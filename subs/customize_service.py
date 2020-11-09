@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from collections import OrderedDict
-from model import UNet
+from unet import UNet
+from unet import UNetNested
 import numpy as np
 
 import torch

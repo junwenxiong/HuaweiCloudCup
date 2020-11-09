@@ -23,8 +23,8 @@ import matplotlib.colors as colors
 from utile.evaluator import Evaluator
 from utile.Data import RSCDataset
 
-from model import UNet
-from model import UNetNested
+from unet import UNet
+from unet import UNetNested
 
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -117,8 +117,8 @@ def train_net(param,  plot=True):
 
         train_loss_per_epoch = train_loss_per_epoch / train_size
         train_loss_total_epochs.append(train_loss_per_epoch)
-        print("training  validation")
-        print('epoch:{}, loss:{}, train_miou:{}, acc:{}'.format(epoch+1, train_loss_per_epoch, mIoU, Acc_class))
+        print("train  validation")
+        print('epoch:{}, loss:{}, train_mIou:{}, train_acc:{}'.format(epoch+1, train_loss_per_epoch, mIoU, Acc_class))
 
         # 验证阶段
 
@@ -160,9 +160,9 @@ def train_net(param,  plot=True):
             best_loss = valid_loss_per_epoch
             best_mode = copy.deepcopy(model)
         scheduler.step()
-        # 显示loss
-        if epoch % disp_inter == 0: 
-            print('Epoch:{}, Training Loss:{:.8f}, Validation Loss:{:.8f}'.format(epoch, train_loss_per_epoch, valid_loss_per_epoch))
+        # # 显示loss
+        # if epoch % disp_inter == 0: 
+        #     print('Epoch:{}, Training Loss:{:.8f}, Validation Loss:{:.8f}'.format(epoch+1, train_loss_per_epoch, valid_loss_per_epoch))
     # 训练loss曲线
     if plot:
         x = [i for i in range(epochs)]
@@ -183,8 +183,7 @@ def train_net(param,  plot=True):
         ax.grid(True)
         plt.legend(loc='upper right', fontsize=15)
         plt.show()
-            
-    return best_mode, model
+
 
 
 def pred(model, data):

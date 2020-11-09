@@ -1,6 +1,6 @@
 import torch.nn.functional as F
 from .unet_parts import *
-from model.SIIS_kernel import SIIS
+from unet.SIIS_kernel import SIIS
 
 class UNet_SIIS(nn.Module):
     def __init__(self, 
