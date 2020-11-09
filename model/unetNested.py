@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 from .unet_parts import *
-from .layers import *
+from model.layers import *
+from model.util import count_param
 
 class UNetNested(nn.Module):
     def __init__(self, in_channels=1, n_classes=2, feature_scale=2, is_deconv=True, is_ds=True, sync_bn=False):
@@ -104,4 +105,6 @@ class UNetNested(nn.Module):
 
 if __name__ == "__main__":
     model = UNetNested()
-    print(model)
+    param = count_param(model)
+    # print(model)
+    print('UNetNested total parameters: %.2fM (%d)' % (param /1e6, param))
