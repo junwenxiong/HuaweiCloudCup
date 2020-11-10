@@ -10,21 +10,31 @@ from utile.deeplearning import train_net
 from utile.dataloaders import make_data_loader
 from utile.loss import SegmentationLosses
 from utile.evaluator import Evaluator
+from utile.saver import Saver
+from utile.summaries import TensorboardSummary
 from torch.autograd import Variable
 
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 1000000000000000
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 class Trainer(object):
     def __init__(self, args):
         self.args = args
-
+        
         kwags = {'num_workers': args.workers, 'pin_memory': True}
         self.train_loader, self.val_loader, self.train_size, self.valid_size = make_data_loader(
             args, **kwags)
+        
+        # Define Saver
+        self.saver = Saver(args)
+        self.saver.save_experiment_config()
+        # Define Tensorboard Summary
+        self.summary = TensorboardSummary(self.saver.experiment_dir)
+        self.writer = self.summary.create_summary()
+
 
         model = None
         # Define network
@@ -73,7 +83,7 @@ class Trainer(object):
         num_img_tr = len(self.train_loader)
 
         for i, sample in enumerate(tbar):
-            data, target = sample['trace'], sample['label']
+            data, target = sample['image'], sample['label']
             if self.args.cuda:
                 data, target = Variable(data.cuda()), Variable(target.cuda())
             self.optimzer.zero_grad()
@@ -83,14 +93,20 @@ class Trainer(object):
             self.optimzer.step()
             train_loss += loss.item()
             tbar.set_description('Train loss: %.5f' % (train_loss / (i + 1)))
+            self.writer.add_scalar('train/total_loss_iter', loss.item(),
+                                    i +num_img_tr * epoch)
 
         pred = output.data.cpu().numpy()
         target = target.cpu().numpy()
         pred = np.argmax(pred, axis=1)
+        # Add batch sample into evaluator
         self.evaluator.add_batch(target, pred)
 
         Acc_class = self.evaluator.Pixel_Accuracy_Class()
         mIoU = self.evaluator.Mean_Intersection_over_Union()
+        self.writer.add_scalar('train/mIoU', mIoU, epoch)
+        self.writer.add_scalar('train/Acc_class', Acc_class, epoch)
+        self.writer.add_scalar('train/train_loss_epoch', train_loss, epoch)
 
         print('train validation:')
         print('epoch:{}, Loss:{:.3f}, Acc_class:{}, mIoU:{}'.format(
@@ -105,7 +121,7 @@ class Trainer(object):
         num_img_val = len(self.val_loader)
 
         for i, sample in enumerate(tbar):
-            data, target = sample['trace'], sample['label']
+            data, target = sample['image'], sample['label']
             if self.args.cuda:
                 data, target = Variable(data.cuda()), (target.cuda())
             with torch.no_grad():
@@ -113,6 +129,9 @@ class Trainer(object):
             loss = self.criterion(output, target)
             test_loss += loss.item()
             tbar.set_description('Test loss:%.5f' % (test_loss / (i + 1)))
+            self.writer.add_scalar('val/total_loss_iter', loss.item(),
+                                    i + num_img_val * epoch)
+
             pred = output.data.cpu().numpy()
             target = target.cpu().numpy()
             pred = np.argmax(pred, axis=1)
@@ -120,6 +139,9 @@ class Trainer(object):
 
         Acc_class = self.evaluator.Pixel_Accuracy_Class()
         mIoU = self.evaluator.Mean_Intersection_over_Union()
+        self.writer.add_scalar('val/total_loss_epoch', test_loss, epoch)
+        self.writer.add_scalar('val/mIoU', mIoU, epoch)
+        self.writer.add_scalar('val/Acc_class', Acc_class, epoch)
 
         print('test validation:')
         print('epoch:{}, Loss:{:.3f}, Acc_class:{}, mIoU:{}'.format(
@@ -129,18 +151,18 @@ class Trainer(object):
         state = {
             'epoch': epoch + 1,
             'state_dict': self.model.state_dict(),
-            'optimizer': self.optimzer.state_dict()
+            'optimizer': self.optimzer.state_dict(),
+            'best_pred': self.best_pred
         }
-        filename = os.path.join(self.checkpoint_dir,
-                                'checkpoint-epoch{}.pth'.format(epoch + 1))
-        torch.save(filename)
-
+        #save checkpont when satisfy the condition only
         new_pred = mIoU
         if new_pred > self.best_pred:
             is_best = True
             self.best_pred = new_pred
-            filename = os.path.join(self.checkpoint_dir, 'dheckpoint-best.pth')
-            torch.save(filename)
+            self.saver.save_checkpoint(
+                state,
+                is_best
+            )
 
 
 def main():
@@ -231,7 +253,7 @@ def main():
 
     parser.add_argument('--checkpoint_dir',
                         type=str,
-                        default='./ckpt/model/',
+                        default='./ckpt/',
                         help='set the checkpoint dir')
 
     parser.add_argument('--eval-interval',
