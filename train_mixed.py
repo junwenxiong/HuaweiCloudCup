@@ -65,19 +65,21 @@ class Trainer(object):
             print('using UNet_SIIS')
 
 
-        train_params = [{'params': model.parameters()}]
 
-        #Define Optimizer
-        Optimizer = torch.optim.Adam(train_params,
-                                     lr=self.args.learn_rate,
-                                     weight_decay=self.args.weight_decay,
-                                     amsgrad=True)
+
 
         
-
+        # the order must be this
         self.device = torch.device(f'cuda:{args.local_rank}')
         self.model = convert_syncbn_model(model).to(self.device)
-        self.model, self.optimzer = amp.initialize(self.model, Optimizer, opt_level='O1')
+        train_params = [{'params': self.model.parameters()}]
+        # Define Optimizer
+        Optimizer = optim.Adam(train_params,
+                               lr=self.args.learn_rate,
+                               weight_decay=self.args.weight_decay,
+                               amsgrad=True)
+
+        self.model, self.optimizer = amp.initialize(self.model, Optimizer, opt_level='O1')
         self.model = DDP(self.model)
 
 
@@ -105,14 +107,14 @@ class Trainer(object):
             data, target = sample['image'], sample['label']
             if self.args.cuda:
                 data, target = Variable(data.cuda()), Variable(target.cuda())
-            self.optimzer.zero_grad()
+            self.optimizer.zero_grad()
             output = self.model(data)
             loss = self.criterion(output, target)
 
             with amp.scale_loss(loss, self.optimizer) as scaled_loss:
                 scaled_loss.backward()
 
-            self.optimzer.step()
+            self.optimizer.step()
             train_loss += loss.item()
             tbar.set_description('Train loss: %.5f' % (train_loss / (i + 1)))
             self.writer.add_scalar('train/total_loss_iter', loss.item(),
