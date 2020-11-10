@@ -32,7 +32,15 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
 class Trainer(object):
     def __init__(self, args):
         self.args = args
-        
+
+
+        torch.distributed.init_process_group(
+            'nccl',
+            init_method='env://'
+        )
+        torch.cuda.set_device(args.local_rank)
+
+
         kwags = {'num_workers': args.workers, 'pin_memory': True}
         self.train_loader, self.val_loader, self.train_size, self.valid_size = make_data_loader(
             args, **kwags)
@@ -66,11 +74,7 @@ class Trainer(object):
                                      amsgrad=True)
 
         
-        torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(
-            'nccl',
-            init_method='env://'
-        )
+
         self.device = torch.device(f'cuda:{args.local_rank}')
         self.model = convert_syncbn_model(model).to(self.device)
         self.model, self.optimzer = amp.initialize(self.model, Optimizer, opt_level='O1')
@@ -193,7 +197,7 @@ def main():
                         help="backbone name (default: unet)")
     parser.add_argument('--dataset',
                         type=str,
-                        default='D:/CodingFiles/Huawei_Competition/Huawei/huawei_data/',
+                        default='./data/',
                         help="dataset dir ")
     parser.add_argument('--workers',
                         type=int,
@@ -213,8 +217,9 @@ def main():
                         default='ce',
                         choices=['ce', 'focal'],
                         help='loss func type (default: ce)')
-   
-    parser.add_argument('--local-rank', default=-1, type=int,
+    parser.add_argument('--mixed_precision', default=True,
+                        help='whether to use mixed precision')
+    parser.add_argument('--local_rank', default=-1, type=int,
                         help='ranking within the nodes')
 
 

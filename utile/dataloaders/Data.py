@@ -63,7 +63,6 @@ class RSCDataset(Dataset):
         composed_transforms = transforms.Compose([
             tr.RandomHorizontalFlip(),
             tr.RandomVerticalFlip(),
-            tr.RandomGammaTransform(),
             tr.RandomGaussianBlur(),
             tr.Normalize(mean=(0.544650, 0.352033, 0.384602,), std=(0.249456, 0.241652, 0.228824,)),
             tr.ToTensor()])
