@@ -90,12 +90,12 @@ class Trainer(object):
             data, target = sample['image'], sample['label']
             if self.args.cuda:
                 data, target = Variable(data.cuda()), Variable(target.cuda())
-            self.optimzer.zero_grad()
+            self.optimizer.zero_grad()
             output = self.model(data)
             loss = self.criterion(output, target)
 
             loss.backward()
-            self.optimzer.step()
+            self.optimizer.step()
             train_loss += loss.item()
             tbar.set_description('Train loss: %.5f' % (train_loss / (i + 1)))
             self.writer.add_scalar('train/total_loss_iter', loss.item(),

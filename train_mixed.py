@@ -65,10 +65,6 @@ class Trainer(object):
             print('using UNet_SIIS')
 
 
-
-
-
-        
         # the order must be this
         self.device = torch.device(f'cuda:{args.local_rank}')
         self.model = convert_syncbn_model(model).to(self.device)
