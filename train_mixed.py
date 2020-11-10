@@ -120,6 +120,7 @@ class Trainer(object):
             self.writer.add_scalar('train/total_loss_iter', loss.item(),
                                     i +num_img_tr * epoch)
 
+
         pred = output.data.cpu().numpy()
         target = target.cpu().numpy()
         pred = np.argmax(pred, axis=1)
