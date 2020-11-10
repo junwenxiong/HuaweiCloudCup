@@ -13,6 +13,8 @@ from utile.evaluator import Evaluator
 from utile.saver import Saver
 from utile.summaries import TensorboardSummary
 from torch.autograd import Variable
+from torch import distributed, optim
+from torch.utils.data.distributed import DistributedSampler
 
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 1000000000000000
@@ -35,7 +37,6 @@ class Trainer(object):
         self.summary = TensorboardSummary(self.saver.experiment_dir)
         self.writer = self.summary.create_summary()
 
-
         model = None
         # Define network
         if self.args.backbone == 'unet':
@@ -48,6 +49,7 @@ class Trainer(object):
             model = UNet_SIIS(n_channels=3, n_classes=2)
             print('using UNet_SIIS')
 
+
         train_params = [{'params': model.parameters()}]
 
         #Define Optimizer
@@ -56,14 +58,16 @@ class Trainer(object):
                                      weight_decay=self.args.weight_decay,
                                      amsgrad=True)
 
+        self.model, self.optimizer = model, Optimizer
+
         #Define Criterion
         weight = None
         self.criterion = SegmentationLosses(
             weight=weight, cuda=args.cuda).build_loss(mode=args.loss_type)
 
-        self.model, self.optimzer = model, Optimizer
 
-        if args.cuda:
+        # use Dataparallel 
+        if not args.mixed_precision and args.cuda:
             self.model = torch.nn.DataParallel(self.model,
                                                device_ids=self.args.gpu_ids)
             self.model = self.model.cuda()
@@ -89,6 +93,7 @@ class Trainer(object):
             self.optimzer.zero_grad()
             output = self.model(data)
             loss = self.criterion(output, target)
+
             loss.backward()
             self.optimzer.step()
             train_loss += loss.item()
@@ -195,6 +200,7 @@ def main():
                         default='ce',
                         choices=['ce', 'focal'],
                         help='loss func type (default: ce)')
+  
 
     #training hyperparameters
     parser.add_argument('--epochs',
@@ -281,25 +287,6 @@ def main():
         trainer.training(epoch)
         if epoch % args.eval_interval == (args.eval_interval - 1):
             trainer.validation(epoch)
-
-    # checkpoint_dir = os.path.join("./ckpt/", 'model/')  # 模型保存路径
-    # if not os.path.exists(checkpoint_dir): os.makedirs(checkpoint_dir)
-    # # 参数设置
-    # param = {}
-    # param['data_dir'] = 'D:/CodingFiles/Huawei_Competition/Huawei/huawei_data/'
-    # param['epochs'] = 41  # 训练轮数
-    # param['batch_size'] = 1  # 批大小
-    # param['lr'] = 1e-2  # 学习率
-    # param['gamma'] = 0.9  # 学习率衰减系数
-    # param['step_size'] = 5  # 学习率衰减间隔
-    # param['momentum'] = 0.9  #动量
-    # param['weight_decay'] = 0.  #权重衰减
-    # param['checkpoint_dir'] = checkpoint_dir
-    # param['disp_inter'] = 1  # 显示间隔
-    # param['save_inter'] = 1  # 保存间隔
-    # # 训练
-    # print(param)
-    # train_net(args, param)
 
 
 if __name__ == "__main__":

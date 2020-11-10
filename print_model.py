@@ -52,4 +52,4 @@ if __name__ == "__main__":
     print_model_info(unet_model, x)
     print_model_info(unetnested_model, x)
     print_model_info(unet_siis, x)
-    print(unet_siis)
+    # print(unet_siis)
