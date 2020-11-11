@@ -12,7 +12,7 @@ class Saver(object):
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
 
-        self.experiment_dir = os.path.join(args.checkpoint_dir, 'experiments_{}_{}'.format('mixed' if args.mix_precision else 'normal', args.backbone))
+        self.experiment_dir = os.path.join(args.checkpoint_dir, 'experiments_{}_{}'.format('mixed' if args.mixed_precision else 'normal', args.backbone))
         if not  os.path.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
 
