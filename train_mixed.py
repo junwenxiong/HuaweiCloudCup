@@ -172,7 +172,7 @@ class Trainer(object):
         state = {
             'epoch': epoch + 1,
             'state_dict': self.model.state_dict(),
-            'optimizer': self.optimzer.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
             'best_pred': self.best_pred
         }
         #save checkpont when satisfy the condition only
