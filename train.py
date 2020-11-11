@@ -66,9 +66,10 @@ class Trainer(object):
 
 
         # use Dataparallel 
-        if not args.mixed_precision and args.cuda:
+        if len(self.args.gpu_ids)>1:
             self.model = torch.nn.DataParallel(self.model,
                                                device_ids=self.args.gpu_ids)
+        if self.args.cuda:                                               
             self.model = self.model.cuda()
 
         self.evaluator = Evaluator(2)
@@ -283,7 +284,7 @@ def main():
     print(args)
 
     trainer = Trainer(args)
-    print('Start Training Epoch:', 1)
+
     print('Total Epochs:', trainer.args.epochs)
     print('-------------------------------')
     for epoch in range(0, trainer.args.epochs):
