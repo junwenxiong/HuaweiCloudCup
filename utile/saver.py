@@ -12,7 +12,7 @@ class Saver(object):
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
 
-        self.experiment_dir = os.path.join(args.checkpoint_dir, 'experiments')
+        self.experiment_dir = os.path.join(args.checkpoint_dir, 'experiments_{}_{}'.format('mixed' if args.mix_precision else 'normal', args.backbone))
         if not  os.path.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
 
@@ -25,6 +25,7 @@ class Saver(object):
             best_pred = state['best_pred']
             with open(os.path.join(self.experiment_dir, 'best_pred.txt'), 'w') as f:
                 f.write(str("epoch:{}, best_pred:{}".format(epoch, best_pred)))
+                f.write('\r\n')  # next line
 
             shutil.copyfile(filename, os.path.join(self.directory, 'model_best.pth'))
 
