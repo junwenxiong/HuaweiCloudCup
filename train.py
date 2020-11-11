@@ -200,7 +200,7 @@ def main():
                         default='ce',
                         choices=['ce', 'focal'],
                         help='loss func type (default: ce)')
-    parser.add_argument('--mixed_precision', default=True,
+    parser.add_argument('--mixed_precision', default=False,
                         help='whether to use mixed precision')
 
     #training hyperparameters
