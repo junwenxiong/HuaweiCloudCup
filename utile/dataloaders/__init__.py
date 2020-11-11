@@ -20,12 +20,15 @@ def make_data_loader(args, **kwargs):
     if args.mixed_precision:
         train_sampler = DistributedSampler(train_data)
         val_sampler = DistributedSampler(valid_data)
-        train_kwargs['sampler'] = train_sampler
-        val_kwargs['sampler'] = val_sampler
-        train_kwargs['shuffle'] = train_sampler is None
+        shuffle = False
+    else:
+        train_sampler = None
+        val_sampler = None
+        shuffle=True
 
-    train_loader = DataLoader(dataset=train_data, batch_size=args.batch_size, **train_kwargs)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=args.batch_size,  **val_kwargs)
+
+    train_loader = DataLoader(dataset=train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=train_sampler,  **kwargs)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=args.batch_size, shuffle=False, sampler=val_sampler,  **kwargs)
 
     train_len = train_data.__len__()
     val_len = valid_data.__len__()
