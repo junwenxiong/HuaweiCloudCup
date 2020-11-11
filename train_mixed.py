@@ -169,9 +169,12 @@ class Trainer(object):
             epoch, test_loss, Acc_class, mIoU))
         print('-------------------------------')
 
+        # when model is saved, remove the module layer for loading state easily
+        self.model_state_dict = self.model.module.state_dict() if len(self.args.gpu_ids) > 1 else self.model.state_dict()
+
         state = {
             'epoch': epoch + 1,
-            'state_dict': self.model.state_dict(),
+            'state_dict': self.model_state_dict ,
             'optimizer': self.optimizer.state_dict(),
             'best_pred': self.best_pred
         }
