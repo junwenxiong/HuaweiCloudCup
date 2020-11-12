@@ -16,8 +16,10 @@ def make_data_loader(args, **kwargs):
     train_kwargs = kwargs
     val_kwargs = kwargs
 
+    # import pdb
+    # pdb.set_trace()
     # if use mixed precision for training
-    if args.mixed_precision:
+    if args.mixed_precision == 'use':
         train_sampler = DistributedSampler(train_data)
         val_sampler = DistributedSampler(valid_data)
         shuffle = False

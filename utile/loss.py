@@ -26,6 +26,10 @@ class SegmentationLosses(object):
         if self.cuda:
             criterion = criterion.cuda()
 
+        # target should be long type because the crossentropy function
+        # In the formula, target is used to index the output logit for
+        # the current target class(note the indexing in x[class])
+        # https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html#torch.nn.CrossEntropyLoss
         loss = criterion(logit, target.long())
 
         if self.batch_average:

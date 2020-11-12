@@ -50,6 +50,6 @@ if __name__ == "__main__":
     unet_siis = UNet_SIIS(3,2)
 
     print_model_info(unet_model, x)
-    print_model_info(unetnested_model, x)
-    print_model_info(unet_siis, x)
+    # print_model_info(unetnested_model, x)
+    # print_model_info(unet_siis, x)
     # print(unet_siis)

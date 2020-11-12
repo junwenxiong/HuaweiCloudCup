@@ -5,33 +5,25 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import random
 #import moxing as mox
-import logging
-from glob import glob
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 1000000000000000
 
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
 
 from utile.evaluator import Evaluator
-from utile.dataloaders.Data import RSCDataset
+from Test_folder.TestData import TestDataset
 
 from unet import UNet
-from unet import UNetNested
 
+from apex import amp
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
-
-
-
 
 
 def smooth(v, w=0.85):
@@ -62,18 +54,25 @@ def train_net(param,  plot=True):
     val_imgs_dir = os.path.join(data_dir, "val/images/")
     train_labels_dir = os.path.join(data_dir, "train/labels/")
     val_labels_dir = os.path.join(data_dir, "val/labels/")
-    train_data = RSCDataset(train_imgs_dir, train_labels_dir)
-    valid_data = RSCDataset(val_imgs_dir, val_labels_dir)
+
+    # using Dataset obeject written by myself
+    # train_data = RSCDataset(train_imgs_dir, train_labels_dir, flag='train')
+    # valid_data = RSCDataset(val_imgs_dir, val_labels_dir, flag='val')
+
+    # using Dataset obeject provided by sponsor
+    train_data =TestDataset(train_imgs_dir, train_labels_dir)
+    valid_data = TestDataset(val_imgs_dir, val_labels_dir)
+
 
 
     train_size = train_data.__len__()
     valid_size = valid_data.__len__()
-    c, y, x = train_data.__getitem__(0)['trace'].shape
+    c, y, x = train_data.__getitem__(0)['image'].shape
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size, shuffle=False)
 
-    model = UNetNested(3, 2).to(device)
+    model = UNet(3, 2).to(device)
 
     evaluator = Evaluator(2)
 
@@ -82,7 +81,9 @@ def train_net(param,  plot=True):
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, amsgrad=True)
     scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
     criterion = nn.CrossEntropyLoss(reduction='mean').to(device)
-    
+
+    model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
+
     # 主循环
     train_loss_total_epochs, valid_loss_total_epochs, epoch_lr = [], [], []
     best_loss = 1e50
@@ -90,20 +91,24 @@ def train_net(param,  plot=True):
     for epoch in range(epochs):
         # 训练阶段
         model.train()
-        evaluator.reset()
+        tbar = tqdm(train_loader)
+        num_img_tr = len(train_loader)
         train_loss_per_epoch = 0
-        for batch_idx, batch_samples in enumerate(train_loader):
-            data, target = batch_samples['trace'], batch_samples['label']
+        for batch_idx, batch_samples in enumerate(tbar):
+            data, target = batch_samples['image'], batch_samples['label']
             data, target = Variable(data.to(device)), Variable(target.to(device))
+            target = target.long()
             optimizer.zero_grad()
             pred = model(data)
             # print(pred.shape, target.shape)
-            # pred_out = pred.data.cpu().numpy()
-            # pred_out = pred_out.argmax(axis=1)
-
             loss = criterion(pred, target)
-            loss.backward()
+
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+
+            # loss.backward()
             optimizer.step()
+            tbar.set_description('Train loss: %.5f' % (loss / (batch_idx + 1)))
             train_loss_per_epoch += loss.item()
         # caculate the miou
         pred_out = pred.data.cpu().numpy()
@@ -125,13 +130,16 @@ def train_net(param,  plot=True):
         model.eval()
         evaluator.reset()
         valid_loss_per_epoch = 0
+        tbar = tqdm(valid_loader)
         with torch.no_grad():
-            for batch_idx, batch_samples in enumerate(valid_loader):
-                data, target = batch_samples['trace'], batch_samples['label']
+            for batch_idx, batch_samples in enumerate(tbar):
+                data, target = batch_samples['image'], batch_samples['label']
                 data, target = Variable(data.to(device)), Variable(target.to(device))
                 pred = model(data)
+                target = target.long()
                 loss = criterion(pred, target)
                 valid_loss_per_epoch += loss.item()
+                tbar.set_description('Test loss : %.5f' % (loss / (batch_idx + 1)))
                 pred = pred.data.cpu().numpy()
                 target = target.cpu().numpy()
                 # retrun the indices of the maximum values along the axis

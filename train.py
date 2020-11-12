@@ -2,19 +2,20 @@ import argparse
 import os
 import numpy as np
 import torch
+from args_config import make_args
 from tqdm import tqdm
 from unet import UNet
 from unet import UNetNested
 from unet import UNet_SIIS
-from utile.deeplearning import train_net
 from utile.dataloaders import make_data_loader
 from utile.loss import SegmentationLosses
 from utile.evaluator import Evaluator
 from utile.saver import Saver
 from utile.summaries import TensorboardSummary
 from torch.autograd import Variable
-from torch import distributed, optim
-from torch.utils.data.distributed import DistributedSampler
+
+from apex import amp
+
 
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 1000000000000000
@@ -35,7 +36,8 @@ class Trainer(object):
         # Define Tensorboard Summary
         self.summary = TensorboardSummary(self.saver.experiment_dir)
         self.writer = self.summary.create_summary()
-
+        # import pdb
+        # pdb.set_trace()
         model = None
         # Define network
         if self.args.backbone == 'unet':
@@ -52,10 +54,14 @@ class Trainer(object):
         train_params = [{'params': model.parameters()}]
 
         #Define Optimizer
-        Optimizer = torch.optim.Adam(train_params,
-                                     lr=self.args.learn_rate,
-                                     weight_decay=self.args.weight_decay,
-                                     amsgrad=True)
+
+        if self.args.optim == 'adam':
+            Optimizer = torch.optim.Adam(train_params,
+                                         lr=self.args.learn_rate,
+                                         weight_decay=self.args.weight_decay,
+                                         amsgrad=True)
+        elif self.args.optim == 'sgd':
+            Optimizer = torch.optim.SGD(train_params, lr=self.args.learn_rate, momentum=self.args.momentum, weight_decay=self.args.weight_decay)
 
         self.model, self.optimizer = model, Optimizer
 
@@ -71,6 +77,9 @@ class Trainer(object):
                                                device_ids=self.args.gpu_ids)
         if self.args.cuda:                                               
             self.model = self.model.cuda()
+
+        #using the apex for speeding up training
+        self.model, self.optimizer = amp.initialize(self.model, self.optimizer, opt_level='O1')
 
         self.evaluator = Evaluator(2)
 
@@ -94,7 +103,11 @@ class Trainer(object):
             output = self.model(data)
             loss = self.criterion(output, target)
 
-            loss.backward()
+            #using apex for speeding up training
+            with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+                scaled_loss.backward()
+
+            # loss.backward()
             self.optimizer.step()
             train_loss += loss.item()
             tbar.set_description('Train loss: %.5f' % (train_loss / (i + 1)))
@@ -175,103 +188,7 @@ class Trainer(object):
 
 def main():
 
-    parser = argparse.ArgumentParser(description="Pytorch Unet Training")
-    parser.add_argument('--backbone',
-                        type=str,
-                        default='unet',
-                        choices=['unet', 'unetnested', 'unet_siis'],
-                        help="backbone name (default: unet)")
-    parser.add_argument('--dataset',
-                        type=str,
-                        default='D:/CodingFiles/Huawei_Competition/Huawei/huawei_data/',
-                        help="dataset dir ")
-    parser.add_argument('--workers',
-                        type=int,
-                        default=4,
-                        metavar='N',
-                        help='dataloader threads')
-    parser.add_argument('--base-size',
-                        type=int,
-                        default=1024,
-                        help='base image size')
-    parser.add_argument('--crop-size',
-                        type=int,
-                        default=1024,
-                        help='crop images size')
-    parser.add_argument('--loss-type',
-                        type=str,
-                        default='ce',
-                        choices=['ce', 'focal'],
-                        help='loss func type (default: ce)')
-    parser.add_argument('--mixed_precision', default=False,
-                        help='whether to use mixed precision')
-
-    #training hyperparameters
-    parser.add_argument('--epochs',
-                        type=int,
-                        default=40,
-                        metavar='N',
-                        help='number of epochs to train')
-    parser.add_argument('--batch-size',
-                        type=int,
-                        default=2,
-                        metavar='N',
-                        help='input batch size for train ')
-    parser.add_argument('--learn-rate',
-                        type=float,
-                        default=1e-2,
-                        metavar='LR',
-                        help='learning rate')
-    parser.add_argument('--momentum',
-                        type=float,
-                        default=0.9,
-                        metavar='M',
-                        help='momentum')
-    parser.add_argument('--weight-decay',
-                        type=float,
-                        default=5e-4,
-                        metavar='M',
-                        help='w-decay')
-    parser.add_argument('--nesterov',
-                        action='store_true',
-                        default=True,
-                        help='whether use nesterov')
-    parser.add_argument('--gamma',
-                        type=float,
-                        default=0.9,
-                        metavar='M',
-                        help='decay coefficient of learning rate')
-    parser.add_argument('--step-size',
-                        type=int,
-                        default=5,
-                        help='learning rate decay interval')
-
-    # cuda, seed and logging
-    parser.add_argument('--no-cuda',
-                        action='store_true',
-                        default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--gpu-ids',
-                        type=str,
-                        default='0',
-                        help='use which gpu to train')
-    parser.add_argument('--seed',
-                        type=int,
-                        default=1,
-                        metavar='S',
-                        help='random seed ')
-
-    parser.add_argument('--checkpoint_dir',
-                        type=str,
-                        default='./ckpt/',
-                        help='set the checkpoint dir')
-
-    parser.add_argument('--eval-interval',
-                        type=int,
-                        default=1,
-                        help='evaluation interval')
-
-    args = parser.parse_args()
+    args = make_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     if args.cuda:
         try:
