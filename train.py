@@ -81,11 +81,27 @@ class Trainer(object):
         #using the apex for speeding up training
         self.model, self.optimizer = amp.initialize(self.model, self.optimizer, opt_level='O1')
 
-        self.evaluator = Evaluator(2)
-
         self.best_pred = 0.0
 
         self.checkpoint_dir = args.checkpoint_dir
+        
+
+        if self.args.resume is not None:
+            if not os.path.isfile(self.args.resume):
+                raise RuntimeError("=> no checkpoint found at '{}'".format(self.args.resume))
+            checkpoint = torch.load(args.resume)
+            self.args.start_epoch = checkpoint['epoch']
+            
+            self.model.load_state_dict(checkpoint['state_dict'])
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+
+            self.best_pred = checkpoint['best_pred']
+
+            print("=> loaded checkpoint '{}' (epoch {})".format(self.args.resume, checkpoint['epoch']))
+
+        self.evaluator = Evaluator(2)
+
+
 
     def training(self, epoch):
         print('training ')
@@ -182,7 +198,9 @@ class Trainer(object):
             self.best_pred = new_pred
             self.saver.save_checkpoint(
                 state,
-                is_best
+                is_best,
+                mIoU,
+                test_loss
             )
 
 
@@ -201,10 +219,10 @@ def main():
     print(args)
 
     trainer = Trainer(args)
-
+    print('Starting Epoch:'. train.args.start_epoch)
     print('Total Epochs:', trainer.args.epochs)
     print('-------------------------------')
-    for epoch in range(0, trainer.args.epochs):
+    for epoch in range(trainer.args.start_epoch, trainer.args.epochs):
         trainer.training(epoch)
         if epoch % args.eval_interval == (args.eval_interval - 1):
             trainer.validation(epoch)
