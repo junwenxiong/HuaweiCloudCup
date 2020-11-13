@@ -43,6 +43,11 @@ def make_args():
                         default=40,
                         metavar='N',
                         help='number of epochs to train')
+    parser.add_argument('--start_epoch',
+                        type=int,
+                        default=0,
+                        metavar='N',
+                        help='start epochs (default:0)')
     parser.add_argument('--batch-size',
                         type=int,
                         default=2,
