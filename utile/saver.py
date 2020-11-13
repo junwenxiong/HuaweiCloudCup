@@ -3,28 +3,30 @@ import shutil
 import torch
 from collections import OrderedDict
 import glob
-
+import time
 
 class Saver(object):
     def __init__(self, args):
         self.args = args
-        self.directory = os.path.join(args.checkpoint_dir, args.backbone)
+
+        now = time.strftime("%m-%d-%H_%M_%S", time.localtime())
+        self.directory = os.path.join(args.checkpoint_dir, args.backbone, now)
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
 
-        self.experiment_dir = os.path.join(args.checkpoint_dir, 'experiments_{}_{}'.format('mixed' if args.mixed_precision else 'normal', args.backbone))
+        self.experiment_dir = os.path.join(args.checkpoint_dir, 'experiments_{}_{}'.format('mixed' if args.mixed_precision else 'normal', args.backbone), now)
         if not  os.path.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
 
-    def save_checkpoint(self, state, is_best):
+    def save_checkpoint(self, state, is_best, mIoU, loss):
         epoch = state['epoch']
-        filename = os.path.join(self.directory, 'checkpoint_epoch{}.pth'.format(epoch))
+        filename = os.path.join(self.directory, 'checkpoint_epoch{}_mIoU_{}.pth'.format(epoch, mIoU))
         torch.save(state, filename)
 
         if is_best:
             best_pred = state['best_pred']
-            with open(os.path.join(self.experiment_dir, 'best_pred.txt'), 'w') as f:
-                f.write(str("epoch:{}, best_pred:{}".format(epoch, best_pred)))
+            with open(os.path.join(self.experiment_dir, 'best_pred.txt'), 'a') as f:
+                f.write(str("epoch:{}, best_pred:{}, val_loss:{}".format(epoch, best_pred, loss)))
                 f.write('\r\n')  # next line
 
             shutil.copyfile(filename, os.path.join(self.directory, 'model_best.pth'))

@@ -219,7 +219,7 @@ def main():
     print(args)
 
     trainer = Trainer(args)
-    print('Starting Epoch:'. train.args.start_epoch)
+    print('Starting Epoch:',  trainer.args.start_epoch)
     print('Total Epochs:', trainer.args.epochs)
     print('-------------------------------')
     for epoch in range(trainer.args.start_epoch, trainer.args.epochs):

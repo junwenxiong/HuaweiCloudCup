@@ -80,7 +80,10 @@ def make_args():
                         type=str,
                         choices=['adam', 'sgd'],
                         help='optimizer type ')
-
+    parser.add_argument('--resume',
+                        type=str,
+                        default=None,
+                        help='put the path to resuming file if needed')
     # cuda, seed and logging
     parser.add_argument('--no-cuda',
                         action='store_true',
